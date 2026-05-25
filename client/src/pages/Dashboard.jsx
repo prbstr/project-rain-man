@@ -1,170 +1,185 @@
 import { useAuth } from '../hooks/useAuth';
 import { useWebSocket } from '../hooks/useWebSocket';
+import { usePrices } from '../hooks/usePrices';
+import { useSignal } from '../hooks/useSignal';
+import { PriceCard } from '../components/PriceCard';
+import { SignalBadge } from '../components/SignalBadge';
+import { RiskPanel } from '../components/RiskPanel';
+import { PolymarketPanel } from '../components/PolymarketPanel';
+import { SignalLog } from '../components/SignalLog';
 
 const styles = {
   container: {
     display: 'flex',
     flexDirection: 'column',
     minHeight: '100vh',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#0f0f0f',
+    color: '#fff',
   },
   header: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: '20px',
-    backgroundColor: 'white',
-    borderBottom: '1px solid #ddd',
+    padding: '16px 24px',
+    backgroundColor: '#1a1a1a',
+    borderBottom: '1px solid #333',
   },
-  title: {
-    fontSize: '24px',
+  headerTitle: {
+    fontSize: '20px',
     fontWeight: 'bold',
+    letterSpacing: '0.5px',
   },
   headerRight: {
     display: 'flex',
     alignItems: 'center',
     gap: '16px',
   },
+  user: {
+    fontSize: '14px',
+    color: '#aaa',
+  },
+  logoutBtn: {
+    padding: '8px 16px',
+    backgroundColor: '#333',
+    color: '#fff',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    fontSize: '13px',
+    fontWeight: '600',
+  },
+  logoutBtnHover: {
+    backgroundColor: '#444',
+  },
   main: {
     flex: 1,
-    padding: '20px',
+    padding: '24px',
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+    gridAutoRows: 'auto',
     gap: '20px',
+    maxWidth: '1400px',
+    margin: '0 auto',
+    width: '100%',
   },
-  card: {
-    backgroundColor: 'white',
-    padding: '20px',
-    borderRadius: '8px',
-    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+  pricesSection: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+    gap: '12px',
+    gridColumn: 'span 2',
   },
-  cardTitle: {
-    fontSize: '18px',
-    fontWeight: 'bold',
-    marginBottom: '12px',
+  signalSection: {
+    gridColumn: 'span 1',
+    gridRowStart: '1',
   },
-  signalBadge: {
-    display: 'inline-block',
-    padding: '8px 16px',
-    borderRadius: '4px',
-    fontSize: '14px',
-    fontWeight: 'bold',
+  riskSection: {
+    gridColumn: 'span 1',
   },
-  signalLong: {
-    backgroundColor: '#d4edda',
-    color: '#155724',
-  },
-  signalShort: {
-    backgroundColor: '#f8d7da',
-    color: '#721c24',
-  },
-  signalNone: {
-    backgroundColor: '#e2e3e5',
-    color: '#383d41',
-  },
-  riskEventList: {
-    listStyle: 'none',
-    padding: 0,
-  },
-  riskEvent: {
-    padding: '8px 0',
-    borderBottom: '1px solid #eee',
-    fontSize: '12px',
-  },
-  placeholder: {
-    color: '#999',
-    fontStyle: 'italic',
+  fullWidth: {
+    gridColumn: '1 / -1',
   },
 };
 
 export function Dashboard() {
   const { user, logout, accessToken } = useAuth();
-  const { latestSignal, riskEvents, isConnected } = useWebSocket(accessToken);
+  const { prices: wsPrices, latestSignal, isConnected } = useWebSocket(accessToken);
+  const { prices } = usePrices(wsPrices);
+  const signal = useSignal(latestSignal);
 
   const handleLogout = async () => {
     await logout();
     window.location.href = '/login';
   };
 
-  const getSignalStyle = (signal) => {
-    if (signal === 'LONG') return { ...styles.signalBadge, ...styles.signalLong };
-    if (signal === 'SHORT') return { ...styles.signalBadge, ...styles.signalShort };
-    return { ...styles.signalBadge, ...styles.signalNone };
+  // Demo prices if not available from API
+  const btcPrice = prices.BTC || { price: 80980, change24h: 2.3 };
+  const tslaPrice = prices.TSLA || { price: null, change24h: 0 };
+
+  // Parse price objects (could be { price, change24h } or just { BTC: ... })
+  const getBtcPrice = () => {
+    if (typeof btcPrice === 'object' && 'price' in btcPrice) {
+      return btcPrice.price;
+    }
+    return 80980;
+  };
+
+  const getBtcChange = () => {
+    if (typeof btcPrice === 'object' && 'change24h' in btcPrice) {
+      return btcPrice.change24h;
+    }
+    return 2.3;
+  };
+
+  const getTslaPrice = () => {
+    if (typeof tslaPrice === 'object' && 'price' in tslaPrice) {
+      return tslaPrice.price;
+    }
+    return null;
+  };
+
+  const getTslaChange = () => {
+    if (typeof tslaPrice === 'object' && 'change24h' in tslaPrice) {
+      return tslaPrice.change24h;
+    }
+    return 0;
   };
 
   return (
     <div style={styles.container}>
+      {/* Header */}
       <header style={styles.header}>
-        <div style={styles.title}>Rain Man</div>
+        <div style={styles.headerTitle}>🌧️ Rain Man</div>
         <div style={styles.headerRight}>
-          <div>
-            <strong>{user?.username || 'User'}</strong>
+          <div style={styles.user}>
+            {user?.username || 'User'} {!isConnected && '(offline)'}
           </div>
-          <button onClick={handleLogout}>Logout</button>
+          <button
+            style={styles.logoutBtn}
+            onClick={handleLogout}
+            onMouseEnter={(e) =>
+              (e.target.style.backgroundColor = styles.logoutBtnHover.backgroundColor)
+            }
+            onMouseLeave={(e) =>
+              (e.target.style.backgroundColor = styles.logoutBtn.backgroundColor)
+            }
+          >
+            Logout
+          </button>
         </div>
       </header>
 
+      {/* Main Content */}
       <main style={styles.main}>
-        {/* Signal Status */}
-        <div style={styles.card}>
-          <div style={styles.cardTitle}>Latest Signal</div>
-          {latestSignal ? (
-            <div>
-              <div style={getSignalStyle(latestSignal.signal)}>
-                {latestSignal.signal}
-              </div>
-              <div style={{ marginTop: '12px', fontSize: '12px', color: '#666' }}>
-                <div>CCI: {latestSignal.cci?.toFixed(2)}</div>
-                <div>ADX: {latestSignal.adx?.toFixed(2)}</div>
-                <div>
-                  {new Date(latestSignal.timestamp).toLocaleTimeString()}
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div style={styles.placeholder}>No signal yet</div>
-          )}
-          <div style={{ marginTop: '12px', fontSize: '12px', color: isConnected ? '#28a745' : '#dc3545' }}>
-            {isConnected ? '● Connected' : '● Disconnected'}
-          </div>
+        {/* Prices Section */}
+        <div style={styles.pricesSection}>
+          <PriceCard symbol="BTC/USDT" price={getBtcPrice()} change24h={getBtcChange()} />
+          <PriceCard symbol="TSLA/USDT" price={getTslaPrice()} change24h={getTslaChange()} />
         </div>
 
-        {/* Risk Events */}
-        <div style={styles.card}>
-          <div style={styles.cardTitle}>Recent Risk Events</div>
-          {riskEvents.length > 0 ? (
-            <ul style={styles.riskEventList}>
-              {riskEvents.slice(0, 3).map((event) => (
-                <li key={event.id} style={styles.riskEvent}>
-                  <div><strong>{event.type || 'Event'}</strong></div>
-                  <div>{event.message || 'Risk event triggered'}</div>
-                  <div style={{ color: '#999' }}>
-                    {new Date(event.timestamp).toLocaleTimeString()}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <div style={styles.placeholder}>No recent events</div>
-          )}
+        {/* Signal Badge */}
+        <div style={styles.signalSection}>
+          <SignalBadge
+            signal={signal.signal}
+            cci={signal.cci}
+            adx={signal.adx}
+            ema={signal.ema}
+            timestamp={signal.timestamp}
+          />
         </div>
 
-        {/* Positions Placeholder */}
-        <div style={styles.card}>
-          <div style={styles.cardTitle}>Open Positions</div>
-          <div style={styles.placeholder}>Coming soon</div>
+        {/* Risk Panel */}
+        <div style={styles.riskSection}>
+          <RiskPanel isHalted={false} drawdownPercent={0.0} positionCount={0} />
         </div>
 
-        {/* P&L Chart Placeholder */}
-        <div style={styles.card}>
-          <div style={styles.cardTitle}>P&L Overview</div>
-          <div style={styles.placeholder}>Coming soon</div>
+        {/* Polymarket Panel */}
+        <div style={styles.fullWidth}>
+          <PolymarketPanel />
         </div>
 
-        {/* Settings Placeholder */}
-        <div style={styles.card}>
-          <div style={styles.cardTitle}>Settings</div>
-          <div style={styles.placeholder}>Coming soon</div>
+        {/* Signal Log */}
+        <div style={styles.fullWidth}>
+          <SignalLog />
         </div>
       </main>
     </div>

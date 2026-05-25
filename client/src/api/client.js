@@ -2,14 +2,47 @@ import axios from 'axios';
 
 const baseURL = import.meta.env.VITE_API_URL || '';
 
+// In-memory token store — set by AuthProvider, read by Axios interceptor
+let _accessToken = null;
+export function setAccessToken(token) { _accessToken = token; }
+export function getAccessToken() { return _accessToken; }
+
 const client = axios.create({
   baseURL,
   withCredentials: true,
 });
 
-// Flag to prevent infinite refresh loops
+// Single in-flight refresh (Strict Mode, mount + 401 interceptor, multiple tabs)
+let refreshPromise = null;
+
+// Flag to prevent infinite refresh loops on retried API calls
 let isRefreshing = false;
 let failedQueue = [];
+
+export function refreshSession() {
+  if (refreshPromise) return refreshPromise;
+
+  const refreshToken = localStorage.getItem('refreshToken');
+  if (!refreshToken) {
+    return Promise.reject(new Error('No refresh token'));
+  }
+
+  refreshPromise = client
+    .post('/auth/refresh', { refreshToken })
+    .then((res) => {
+      const { accessToken, refreshToken: newRefreshToken } = res.data;
+      localStorage.setItem('accessToken', accessToken);
+      if (newRefreshToken) {
+        localStorage.setItem('refreshToken', newRefreshToken);
+      }
+      return res.data;
+    })
+    .finally(() => {
+      refreshPromise = null;
+    });
+
+  return refreshPromise;
+}
 
 const processQueue = (error, token = null) => {
   failedQueue.forEach((prom) => {
@@ -25,10 +58,8 @@ const processQueue = (error, token = null) => {
 // Request interceptor: attach access token
 client.interceptors.request.use(
   (config) => {
-    const accessToken = localStorage.getItem('accessToken');
-    if (accessToken) {
-      config.headers.Authorization = `Bearer ${accessToken}`;
-    }
+    const token = _accessToken;
+    if (token) config.headers.Authorization = `Bearer ${token}`;
     return config;
   },
   (error) => Promise.reject(error)
@@ -59,21 +90,8 @@ client.interceptors.response.use(
       config._retry = true;
       isRefreshing = true;
 
-      const refreshToken = localStorage.getItem('refreshToken');
-      if (!refreshToken) {
-        // No refresh token, redirect to login
-        window.location.href = '/login';
-        return Promise.reject(error);
-      }
-
-      return client
-        .post('/auth/refresh', { refreshToken })
-        .then((res) => {
-          const { accessToken: newAccessToken, refreshToken: newRefreshToken } = res.data;
-          localStorage.setItem('accessToken', newAccessToken);
-          if (newRefreshToken) {
-            localStorage.setItem('refreshToken', newRefreshToken);
-          }
+      return refreshSession()
+        .then(({ accessToken: newAccessToken }) => {
           config.headers.Authorization = `Bearer ${newAccessToken}`;
           processQueue(null, newAccessToken);
           return client(config);

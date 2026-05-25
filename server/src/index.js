@@ -1,9 +1,5 @@
-import dotenv from 'dotenv';
-import { resolve } from 'path';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-const __dirname = dirname(fileURLToPath(import.meta.url));
-dotenv.config({ path: resolve(__dirname, '../../.env') });
+import './loadEnv.js';
+import { startPriceFeed, stopPriceFeed } from './bybit/priceFeed.js';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -48,11 +44,13 @@ initializeWebSocketExports(ws);
 server.listen(PORT, () => {
   console.log(`Rain Man server running on port ${PORT}`);
   console.log(`WebSocket ready at ws://localhost:${PORT}/ws`);
+  startPriceFeed(['BTC/USDT', 'ETH/USDT'], 10000);
 });
 
 // --- Graceful shutdown ---
 process.on('SIGTERM', () => {
   console.log('SIGTERM received, shutting down gracefully...');
+  stopPriceFeed();
   ws.closeAll();
   server.close(() => {
     console.log('Server closed');

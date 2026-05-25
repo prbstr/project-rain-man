@@ -16,8 +16,7 @@ export async function generateRefreshToken(user) {
     { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d' }
   );
 
-  const expiresAt = new Date();
-  expiresAt.setDate(expiresAt.getDate() + 7);
+  const expiresAt = refreshExpiresAt();
 
   await prisma.refreshToken.create({
     data: { token, userId: user.id, expiresAt }
@@ -26,8 +25,29 @@ export async function generateRefreshToken(user) {
   return token;
 }
 
+function refreshExpiresAt() {
+  const expiresAt = new Date();
+  const match = /^(\d+)([dhms])$/i.exec(process.env.JWT_REFRESH_EXPIRES_IN || '7d');
+  if (!match) {
+    expiresAt.setDate(expiresAt.getDate() + 7);
+    return expiresAt;
+  }
+  const n = Number(match[1]);
+  const unit = match[2].toLowerCase();
+  if (unit === 'd') expiresAt.setDate(expiresAt.getDate() + n);
+  else if (unit === 'h') expiresAt.setHours(expiresAt.getHours() + n);
+  else if (unit === 'm') expiresAt.setMinutes(expiresAt.getMinutes() + n);
+  else expiresAt.setSeconds(expiresAt.getSeconds() + n);
+  return expiresAt;
+}
+
 export async function rotateRefreshToken(oldToken) {
-  const payload = jwt.verify(oldToken, process.env.JWT_REFRESH_SECRET);
+  let payload;
+  try {
+    payload = jwt.verify(oldToken, process.env.JWT_REFRESH_SECRET);
+  } catch {
+    throw new Error('Invalid or expired refresh token');
+  }
 
   // Atomic one-time use: deleteMany avoids P2025 on concurrent refresh/logout
   const { count } = await prisma.refreshToken.deleteMany({

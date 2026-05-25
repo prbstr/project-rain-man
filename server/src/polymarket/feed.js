@@ -7,33 +7,14 @@
  * No auth required — all endpoints are public.
  */
 
-/**
- * Curated watchlist of high-signal Polymarket markets
- * These 5-8 markets provide macro context for trading decisions.
- * Easy to update: just change the condition IDs here.
- */
-const WATCHLIST_CONFIG = [
-  {
-    conditionId: '0x1234567890abcdef1234567890abcdef12345678', // Example: BTC > $100k by end of 2025
-    label: 'BTC > $100k by EOY',
-  },
-  {
-    conditionId: '0xabcdef1234567890abcdef1234567890abcdef12', // Example: Fed cuts rates in Q3 2025
-    label: 'Fed Cuts Rates Q3',
-  },
-  {
-    conditionId: '0xfedcba9876543210fedcba9876543210fedcba98', // Example: S&P 500 > 6000
-    label: 'S&P 500 > 6000',
-  },
-  {
-    conditionId: '0x1111111111111111111111111111111111111111', // Example: Inflation < 3% by Q4 2025
-    label: 'Inflation < 3%',
-  },
-  {
-    conditionId: '0x2222222222222222222222222222222222222222', // Example: ETH > $5000 by EOY
-    label: 'ETH > $5000',
-  },
+// Keywords used to dynamically discover relevant markets from Gamma API
+const WATCHLIST_KEYWORDS = [
+  'bitcoin', 'ethereum', 'crypto', 'fed', 'federal reserve',
+  'inflation', 'nasdaq', 'recession', 'trump', 'tariff', 'rate cut', 'oil', 'gold'
 ];
+
+// Max markets to show on the watchlist
+const WATCHLIST_LIMIT = 8;
 
 /**
  * In-memory cache with TTL
@@ -170,7 +151,9 @@ class PolymarketFeed {
       }
 
       const data = await response.json();
-      const probability = parseFloat(data.probability ?? data.yesPrice ?? 0);
+      // CLOB API returns tokens array — find the YES token price
+      const yesToken = data.tokens?.find(t => t.outcome === 'Yes');
+      const probability = parseFloat(yesToken?.price ?? data.probability ?? data.yesPrice ?? 0);
 
       // Validate range
       if (probability < 0 || probability > 1) {
@@ -197,41 +180,54 @@ class PolymarketFeed {
    * @returns {Array} Watchlist: [{ label, probability, lastUpdate }, ...]
    */
   async getWatchlist() {
+    const cacheKey = 'watchlist';
+    const cached = this.cache.get(cacheKey);
+    if (cached) return cached;
+
+    console.log('[Polymarket] Building dynamic watchlist...');
+
     try {
-      console.log('[Polymarket] Fetching watchlist...');
+      // Fetch all active markets and filter for finance/macro relevance
+      const res = await fetch(
+        'https://gamma-api.polymarket.com/markets?limit=500&active=true&closed=false'
+      );
+      if (!res.ok) throw new Error(`Gamma API error: ${res.status} ${res.statusText}`);
+      const markets = await res.json();
 
-      // Fetch all watchlist items in parallel
-      const promises = WATCHLIST_CONFIG.map(async (item) => {
-        try {
-          const probability = await this.getMarketProbability(item.conditionId);
-          return {
-            label: item.label,
-            probability,
-            lastUpdate: new Date().toISOString(),
-            conditionId: item.conditionId,
-          };
-        } catch (err) {
-          // Degrade gracefully: return error state for this market
-          console.warn(
-            `[Polymarket] Watchlist item failed (${item.label}):`,
-            err.message
-          );
-          return {
-            label: item.label,
-            probability: null,
-            error: err.message,
-            lastUpdate: new Date().toISOString(),
-            conditionId: item.conditionId,
-          };
-        }
-      });
+      const pattern = new RegExp(WATCHLIST_KEYWORDS.join('|'), 'i');
+      const relevant = markets
+        .filter(m => pattern.test(m.question || ''))
+        .slice(0, WATCHLIST_LIMIT);
 
-      const results = await Promise.all(promises);
+      console.log(`[Polymarket] Found ${relevant.length} relevant markets`);
 
-      console.log(
-        `[Polymarket] Watchlist: ${results.filter((r) => r.probability !== null).length}/${WATCHLIST_CONFIG.length} markets loaded`
+      // Fetch probabilities in parallel, degrade gracefully
+      const results = await Promise.all(
+        relevant.map(async (m) => {
+          try {
+            const probability = await this.getMarketProbability(m.conditionId);
+            return {
+              label: m.question?.slice(0, 80),
+              probability,
+              conditionId: m.conditionId,
+              lastUpdate: new Date().toISOString(),
+            };
+          } catch (err) {
+            return {
+              label: m.question?.slice(0, 80),
+              probability: null,
+              conditionId: m.conditionId,
+              error: err.message,
+              lastUpdate: new Date().toISOString(),
+            };
+          }
+        })
       );
 
+      const loaded = results.filter(r => r.probability !== null).length;
+      console.log(`[Polymarket] Watchlist: ${loaded}/${results.length} markets loaded`);
+
+      this.cache.set(cacheKey, results);
       return results;
     } catch (err) {
       console.error('[Polymarket.getWatchlist] Error:', err.message);
