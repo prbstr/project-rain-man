@@ -27,16 +27,15 @@ export async function generateRefreshToken(user) {
 }
 
 export async function rotateRefreshToken(oldToken) {
-  const stored = await prisma.refreshToken.findUnique({ where: { token: oldToken } });
-  if (!stored || stored.expiresAt < new Date()) {
-    throw new Error('Invalid or expired refresh token');
-  }
-
-  // Verify signature
   const payload = jwt.verify(oldToken, process.env.JWT_REFRESH_SECRET);
 
-  // Delete old token (rotation — one use only)
-  await prisma.refreshToken.delete({ where: { token: oldToken } });
+  // Atomic one-time use: deleteMany avoids P2025 on concurrent refresh/logout
+  const { count } = await prisma.refreshToken.deleteMany({
+    where: { token: oldToken, expiresAt: { gt: new Date() } },
+  });
+  if (count === 0) {
+    throw new Error('Invalid or expired refresh token');
+  }
 
   const user = await prisma.user.findUnique({ where: { id: payload.sub } });
   if (!user) throw new Error('User not found');

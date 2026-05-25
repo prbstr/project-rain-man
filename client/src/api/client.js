@@ -69,8 +69,11 @@ client.interceptors.response.use(
       return client
         .post('/auth/refresh', { refreshToken })
         .then((res) => {
-          const { accessToken: newAccessToken } = res.data;
+          const { accessToken: newAccessToken, refreshToken: newRefreshToken } = res.data;
           localStorage.setItem('accessToken', newAccessToken);
+          if (newRefreshToken) {
+            localStorage.setItem('refreshToken', newRefreshToken);
+          }
           config.headers.Authorization = `Bearer ${newAccessToken}`;
           processQueue(null, newAccessToken);
           return client(config);

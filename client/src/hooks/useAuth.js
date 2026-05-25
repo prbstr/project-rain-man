@@ -18,8 +18,11 @@ export function useAuth() {
 
       try {
         const res = await client.post('/auth/refresh', { refreshToken });
-        const { accessToken: newAccessToken } = res.data;
+        const { accessToken: newAccessToken, refreshToken: newRefreshToken } = res.data;
         localStorage.setItem('accessToken', newAccessToken);
+        if (newRefreshToken) {
+          localStorage.setItem('refreshToken', newRefreshToken);
+        }
         setAccessToken(newAccessToken);
 
         // Fetch user info

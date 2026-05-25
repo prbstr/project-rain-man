@@ -11,7 +11,7 @@
  * Isolation: Per-user (signal for user A doesn't reach user B)
  */
 
-import WebSocket from 'ws';
+import { WebSocketServer, WebSocket } from 'ws';
 import jwt from 'jsonwebtoken';
 
 /**
@@ -27,7 +27,7 @@ const connections = new Map();
  * @returns {Object} { setupWebSocket, broadcastPrice, broadcastSignal, broadcastRiskEvent }
  */
 export function setupWebSocket(server) {
-  const wss = new WebSocket.Server({ server });
+  const wss = new WebSocketServer({ server });
 
   console.log('[WebSocket] Server setup on ws://localhost:3001/ws');
 
