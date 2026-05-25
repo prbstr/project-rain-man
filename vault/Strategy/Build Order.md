@@ -7,7 +7,7 @@ Sequence locked 2026-05-25. Local-first, VPS-ready.
 ## Phase 1 — Foundation
 
 ### 1. Monorepo Scaffold
-- [ ] Create `~/dev/project-rain-man/` structure
+- [ ] Create `~/.openclaw/dev/project-rain-man/` structure
 - [ ] `/client`, `/server`, `/strategy` directories
 - [ ] `package.json` at root (workspaces)
 - [ ] `.env.example`, `.gitignore`

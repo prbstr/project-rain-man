@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "Welcome.md",
+                "file": "Architecture/System Overview.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "Welcome"
+              "title": "System Overview"
             }
           }
         ]
@@ -201,22 +201,22 @@
   },
   "active": "cf301abeae8358ad",
   "lastOpenFiles": [
-    "Team/Team Overview.md",
-    "Research/Polymarket Feed.md",
     "Sessions/2026-05-25.md",
-    "Risk/Risk Register.md",
-    "API/Bybit API Reference.md",
-    "Strategy/Build Order.md",
-    "Strategy/Base Strategy.md",
-    "Architecture/System Overview.md",
     "🏠 Home.md",
+    "Architecture/System Overview.md",
+    "Team/Team Overview.md",
+    "API/Bybit API Reference.md",
+    "Research/Polymarket Feed.md",
+    "Risk/Risk Register.md",
+    "Strategy/Base Strategy.md",
+    "Strategy/Build Order.md",
+    "Welcome.md",
     "Team",
     "API",
     "Risk",
     "Sessions",
     "Research",
     "Strategy",
-    "Architecture",
-    "Welcome.md"
+    "Architecture"
   ]
 }

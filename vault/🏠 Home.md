@@ -22,11 +22,20 @@
 | Vault setup | ✅ Done |
 | Tech stack decision | ✅ Locked |
 | Pine Script base | ✅ Received (execution block) |
-| Monorepo scaffold | ⏳ Next |
-| Bybit ccxt connection | ⏳ Pending |
-| Strategy port to JS | ⏳ Pending |
-| Polymarket feed | ⏳ Pending |
-| React dashboard | ⏳ Pending |
+| Monorepo scaffold | ✅ Done |
+| Auth backend (JWT + bcrypt + AES-256) | ✅ Done |
+| Bybit ccxt connection | ✅ Done (testnet enforced, circuit breaker) |
+| Risk guardian (kill switch + drawdown) | ✅ Done |
+| Market data validator | ✅ Done |
+| Leverage cap enforcement | ✅ Done |
+| OHLCV candle fetcher | ✅ Done (Brock) |
+| Strategy engine (CCI/EMA/ADX/ATR port) | ✅ Done (Alex + Brock bug fix) |
+| Strategy unit tests (R03) | ✅ Done — critical crossover bug caught + fixed |
+| React app scaffold + auth UI | 🔨 Cho (in progress) |
+| Polymarket feed | ✅ Done (Brock) |
+| WebSocket server (real-time price/signal/risk feeds) | ✅ Done (Brock) |
+| React dashboard (positions, P&L, signals) | ⏳ Pending |
+| Prisma migration | ⏳ Needs Postgres + .env setup |
 
 ---
 

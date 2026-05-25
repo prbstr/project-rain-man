@@ -1,0 +1,36 @@
+{
+  "name": "rain-man-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/index.js",
+    "start": "node src/index.js",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "db:migrate": "dotenv -e ../.env -- prisma migrate dev",
+    "db:generate": "prisma generate",
+    "db:studio": "dotenv -e ../.env -- prisma studio",
+    "db:status": "dotenv -e ../.env -- prisma migrate status"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.14.0",
+    "bcryptjs": "^2.4.3",
+    "ccxt": "^4.3.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.3.1",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "technicalindicators": "^3.1.0",
+    "ws": "^8.17.1",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@babel/preset-env": "^7.29.7",
+    "babel-jest": "^30.4.1",
+    "jest": "^30.4.2",
+    "prisma": "^5.14.0"
+  }
+}

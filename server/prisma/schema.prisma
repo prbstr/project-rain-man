@@ -1,0 +1,146 @@
+// Project Rain Man — Prisma Schema
+// Run: npx prisma migrate dev --name init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// Users
+// ============================================================
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  username     String   @unique
+  passwordHash String
+  role         Role     @default(USER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  refreshTokens RefreshToken[]
+  apiKeys       UserApiKey[]
+  trades        Trade[]
+  settings      UserSettings?
+  riskEvents    RiskEvent[]
+
+  @@map("users")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+// ============================================================
+// Auth
+// ============================================================
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("refresh_tokens")
+}
+
+// ============================================================
+// Exchange API Keys (encrypted at rest)
+// ============================================================
+model UserApiKey {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exchange     String   // "bybit"
+  label        String   // e.g. "Main", "Testnet"
+  apiKeyEnc    String   // AES-256-GCM encrypted
+  apiSecretEnc String   // AES-256-GCM encrypted
+  isTestnet    Boolean  @default(true)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([userId, exchange, label])
+  @@map("user_api_keys")
+}
+
+// ============================================================
+// Trades
+// ============================================================
+model Trade {
+  id         String      @id @default(cuid())
+  userId     String
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exchange   String
+  symbol     String
+  side       TradeSide
+  qty        Float
+  entryPrice Float
+  exitPrice  Float?
+  pnl        Float?
+  status     TradeStatus @default(OPEN)
+  openedAt   DateTime    @default(now())
+  closedAt   DateTime?
+  metadata   Json?       // strategy signal data, indicator values at entry
+
+  @@map("trades")
+}
+
+enum TradeSide {
+  LONG
+  SHORT
+}
+
+enum TradeStatus {
+  OPEN
+  CLOSED
+  CANCELLED
+}
+
+// ============================================================
+// User Settings
+// ============================================================
+model UserSettings {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  maxDailyDrawdown  Float    @default(5.0)   // % of equity
+  maxPositionSize   Float    @default(20.0)  // % of equity per trade
+  maxOpenPositions  Int      @default(3)
+  leverageCap       Float    @default(5.0)   // max leverage to use
+  botEnabled        Boolean  @default(false)
+  haltedUntil       DateTime?               // Halt deadline; trading resumes when now() > haltedUntil
+  haltReason        String?                 // Why trading was halted (e.g., "Daily drawdown exceeded 5%")
+  updatedAt         DateTime @updatedAt
+
+  @@map("user_settings")
+}
+
+// ============================================================
+// Risk Events (immutable audit log)
+// ============================================================
+model RiskEvent {
+  id        String      @id @default(cuid())
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      RiskEventType
+  details   Json?       // { reason?, positions?, orders?, errors? }
+  createdAt DateTime    @default(now())
+
+  @@index([userId, createdAt])
+  @@map("risk_events")
+}
+
+enum RiskEventType {
+  KILL_SWITCH
+  HALT_DRAWDOWN
+  HALT_MANUAL
+  RESET
+}

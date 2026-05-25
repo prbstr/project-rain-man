@@ -1,0 +1,40 @@
+// Project Rain Man — Base Strategy (Pine Script)
+// Source: Provided by Sharad, 2026-05-25
+// Status: EXECUTION BLOCK ONLY
+// Missing: strategy() declaration, input() params, indicator calculations
+// Next: Reconstruct full script, backtest on 3y BTC/ETH data
+
+// === Entry Conditions ===
+longCondition = ta.crossover(cci, cciOversold) and close > ema   // Long entries in an uptrend
+shortCondition = ta.crossunder(cci, cciOverbought) and close < ema // Short entries in a downtrend
+
+// === Position Sizing ===
+capital = strategy.equity
+baseSize = capital * (leverage / 100)
+positionSize = adx > adxThreshold ? baseSize * sizeMultiplier : baseSize
+positionSizeFinal = math.max(positionSize, 1)
+
+// === Stop-Loss & Take-Profit Logic ===
+stopLossATR = atr * stopLossMultiplier
+takeProfitATR = stopLossATR * takeProfitRatio
+
+// Adaptive Stop-Loss using ATR & Keltner Channel
+longSL  = useKeltnerForStops ? math.min(strategy.position_avg_price - stopLossATR, kcLower) : strategy.position_avg_price - stopLossATR
+shortSL = useKeltnerForStops ? math.max(strategy.position_avg_price + stopLossATR, kcUpper) : strategy.position_avg_price + stopLossATR
+longTP  = strategy.position_avg_price + takeProfitATR
+shortTP = strategy.position_avg_price - takeProfitATR
+
+// === Trade Execution ===
+if longCondition
+    strategy.entry("Long", strategy.long, qty=positionSizeFinal)
+    strategy.exit("Take Profit Long", from_entry="Long", limit=longTP, stop=longSL, trail_points=trailStopMultiplier * atr)
+
+if shortCondition
+    strategy.entry("Short", strategy.short, qty=positionSizeFinal)
+    strategy.exit("Take Profit Short", from_entry="Short", limit=shortTP, stop=shortSL, trail_points=trailStopMultiplier * atr)
+
+// === Plot Indicators ===
+plot(kcMid,   title="Keltner Mid",   color=color.orange)
+plot(kcUpper, title="Keltner Upper", color=color.red)
+plot(kcLower, title="Keltner Lower", color=color.green)
+plot(ema,     title="EMA",           color=color.blue)
